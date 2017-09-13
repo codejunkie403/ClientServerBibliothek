@@ -11,17 +11,15 @@ using System.IO;
 
 namespace EinfachesNetzwerk
 {
-	public class Client
+	public class Client: Core
 	{
 		// Felder
 		private TcpClient client;
 		private string host;
 		private ushort port;
 		private bool connected;
-		private Action<byte[], int> receiveCallback;
 		private Action<string> errorCallback;
 		//private byte[] receiveBuffer;
-		private Core core;
 
 		// Eigenschaften
 		public string Host { get => this.host; }
@@ -29,13 +27,12 @@ namespace EinfachesNetzwerk
 		public bool Connected { get => this.connected; }
 
 		// Öffentliche Methoden
-		public Client(Action<byte[], int> receiveCallback, Action<string> errorCallback = null)
+		public Client(Action<string> errorCallback = null)
 		{
 			this.client = null;
 			this.host = null;
 			this.port = 0;
 			this.connected = false;
-			this.receiveCallback = receiveCallback;
 			this.errorCallback = errorCallback;
 		}
 		public void connect(string host, ushort port)
@@ -82,31 +79,7 @@ namespace EinfachesNetzwerk
 				Console.WriteLine("Es besteht keine Verbindung, die getrennt werden kann!");
 			}
 		}
-		//public void send(byte[] data)
-		//{
-		//	if (this.connected)
-		//	{
-		//		// Nachricht an Client senden
-		//		this.client.GetStream().BeginWrite(data, 0, data.Length, ar =>
-		//		{
-		//			try
-		//			{
-		//				this.client.GetStream().EndWrite(ar);
-		//				Console.WriteLine("Nachricht gesendet");
-		//			}
-		//			catch (IOException exc)
-		//			{
-		//				this?.errorCallback(exc.Message);
-		//				this.setDisconnected();
-		//			}
-		//			catch (ObjectDisposedException exc)
-		//			{
-		//				this.setDisconnected();
-		//			}
 
-		//		}, null);
-		//	}
-		//}
 		public void sendObject(object obj)
 		{
 			if (!this.connected)
@@ -117,7 +90,7 @@ namespace EinfachesNetzwerk
 
 			try
 			{
-				var objectBytes = this.core.serialize(obj);
+				var objectBytes = this.serialize(obj);
 				var objectSizeBytes = BitConverter.GetBytes(objectBytes.Length);
 
 				var clientStream = this.client.GetStream();
@@ -135,51 +108,6 @@ namespace EinfachesNetzwerk
 				Console.WriteLine("Fehler beim Serialisieren des Objekts: {0}", exc.Message);
 			}
 		}
-
-		/////////////////////////////////////////////////////////////////////
-
-		//private class Packet
-		//{
-		//	public enum PacketType : byte
-		//	{
-		//		Object,
-		//		File
-		//	}
-		//	public PacketType Type { get; set; }
-		//}
-		//private class ObjectPacket:
-		//	Packet
-		//{
-		//	public object Object;
-
-		//	public ObjectPacket()
-		//	{
-		//		this.Type = PacketType.Object;
-		//	}
-		//}
-
-		//private class FilePacket:
-		//	Packet
-		//{
-		//	public long Size { get; set; }
-		//	public DateTime CreationTime { get; set; }
-		//	public DateTime LastAccessTime { get; set; }
-		//	public DateTime LastWriteTime { get; set; }
-		//	public string Name { get; set; }
-
-		//	public FilePacket()
-		//	{
-		//		this.Type = PacketType.File;
-		//	}
-		//}
-
-		//private byte[] serializeObject(object obj)
-		//{
-		//	return Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(obj));
-		//}
-
-		/////////////////////////////////////////////////////////////////////
-
 		public void sendFile(string path)
 		{
 			if (!this.connected)
@@ -210,7 +138,7 @@ namespace EinfachesNetzwerk
 					Name = fileInfo.Name
 				};
 
-				var filePacketBytes = this.core.serialize(filePacket);
+				var filePacketBytes = this.serialize(filePacket);
 				var filePacketSizeBytes = BitConverter.GetBytes(filePacketBytes.Length);
 
 				var clientStream = this.client.GetStream();
@@ -271,45 +199,9 @@ namespace EinfachesNetzwerk
 
 			// Prozess zum Empfangen vom Server starten
 			//this.receiveBuffer = new byte[this.client.ReceiveBufferSize];
-			this.core = new Core(this.client.ReceiveBufferSize);
-			this.core.startReceiving(this.client.GetStream(), this.setDisconnected);
+
+			this.configReceiveBuffer(this.client.ReceiveBufferSize);
+			this.startReceiving(this.client.GetStream(), this.setDisconnected);
 		}
-		//private void receive()
-		//{
-		//	try
-		//	{
-		//		this.client.GetStream().BeginRead(this.core.receivedBuffer, this.core.receivedBufferOffset, this.core.receivedBuffer.Length - this.core.receivedBufferOffset, this.processReceiveBuffer, null);
-		//	}
-		//	catch (IOException exc)
-		//	{
-		//		//this?.errorCallback(exc.Message);
-		//		this.setDisconnected();
-		//	}
-		//}
-		//private void processReceiveBuffer(IAsyncResult ar)
-		//{
-		//	int receivedSize = 0;
-		//	try
-		//	{
-		//		receivedSize = this.client.GetStream().EndRead(ar);
-		//		if (receivedSize == 0)
-		//		{
-		//			this.setDisconnected();
-		//			return;
-		//		}
-		//	}
-		//	catch (Exception exc)
-		//	{
-		//		//this?.errorCallback(exc.Message);
-		//		this.setDisconnected();
-		//		return;
-		//	}
-
-		//	//this.receiveCallback(this.receiveBuffer, receivedSize);
-		//	Console.WriteLine("{0} Bytes empfangen", receivedSize);
-		//	this.core.parseReceivedBuffer(receivedSize);
-
-		//	this.receive();
-		//}
 	}
 }

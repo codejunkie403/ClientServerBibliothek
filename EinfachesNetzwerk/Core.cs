@@ -44,15 +44,18 @@ namespace EinfachesNetzwerk
 		public event Action<byte[], long, long> ReceiveFile;
 
 		// Methoden
-		public Core(int receivedBufferSize = 65536)
+		public Core()
 		{
-			this.receivedBuffer = new byte[receivedBufferSize];
 			this.receivedBufferOffset = 0;
 			this.currentPacketSize = 0;
 			this.currentPacketType = PacketType.Invalid;
 			this.packetStream = new MemoryStream();
 			this.currentFilePacket = null;
 			this.receivedFileSize = 0;
+		}
+		public void configReceiveBuffer(int size)
+		{
+			this.receivedBuffer = new byte[size];
 		}
 		public byte[] serialize(object obj)
 		{
@@ -130,7 +133,7 @@ namespace EinfachesNetzwerk
 						this.currentPacketType = PacketType.FileData;
 						//Console.WriteLine(Encoding.UTF8.GetString(this.packetStream.ToArray()));
 						//Console.WriteLine("Dateipaket empfangen");
-						this?.ReceiveFileInfo(this.currentFilePacket.Name, this.currentFilePacket.Size);
+						this.ReceiveFileInfo(this.currentFilePacket.Name, this.currentFilePacket.Size);
 					}
 					catch
 					{
@@ -184,7 +187,8 @@ namespace EinfachesNetzwerk
 						//Console.WriteLine("Datei komplett empfangen");
 						// Callback für Dateiverarbeitung
 						this.receivedFileSize += restSize;
-						this?.ReceiveFile(fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
+						if (this.ReceiveFile != null)
+							this.ReceiveFile(fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
 
 						this.currentPacketSize = 0;
 						this.currentPacketType = PacketType.Invalid;
@@ -234,7 +238,8 @@ namespace EinfachesNetzwerk
 					this.packetStream.Write(this.receivedBuffer, this.receivedBufferOffset, this.currentPacketSize);
 					// Paket ist fertig!
 					//Console.WriteLine("Dateipaket empfangen");
-					this?.ReceiveObject(this.deserialize(this.packetStream.ToArray()));
+					if (this.ReceiveObject != null)
+						this.ReceiveObject(this.deserialize(this.packetStream.ToArray()));
 
 
 					// Pakettyp und Paketstream für nächstes Paket zurücksetzen
@@ -302,27 +307,5 @@ namespace EinfachesNetzwerk
 			}
 		}
 
-		//public void sendObject(object obj)
-		//{
-		//	try
-		//	{
-		//		var objectBytes = this.serialize(obj);
-		//		var objectSizeBytes = BitConverter.GetBytes(objectBytes.Length);
-
-		//		var clientStream = this.client.GetStream();
-		//		using (var memoryStream = new MemoryStream())
-		//		{
-		//			memoryStream.Write(objectSizeBytes, 0, objectSizeBytes.Length);
-		//			memoryStream.WriteByte((byte)PacketType.Object);
-		//			memoryStream.Write(objectBytes, 0, objectBytes.Length);
-
-		//			memoryStream.WriteTo(clientStream);
-		//		}
-		//	}
-		//	catch (Exception exc)
-		//	{
-		//		Console.WriteLine("Fehler beim Serialisieren des Objekts: {0}", exc.Message);
-		//	}
-		//}
 	}
 }

@@ -12,23 +12,17 @@ namespace Client
 
 		static void Main(string[] args)
 		{
-			client = new EinfachesNetzwerk.Client(receiveCallback, errorCallback);
+			client = new EinfachesNetzwerk.Client(errorCallback);
+			client.ReceiveObject += Client_ReceiveObject;
+			client.ReceiveFileInfo += Client_ReceiveFileInfo;
+			client.ReceiveFile += Client_ReceiveFile;
+
 			client.connect(host: "localhost", port: 9876);
+
 			Console.ReadKey();
 
-			//var obj = new Newtonsoft.Json.Linq.JObject();
-			//obj["Name"] = "Hans Peter!";
 
-			//client.sendObject(obj);
-			//client.sendObject(obj);
-
-			client.sendFile("C:\\Users\\Marcel\\Downloads\\FileZilla_3.26.2_win64-setup.exe");
-			//client.sendObject(obj);
-			//client.sendObject(obj);
-			//client.sendObject(obj);
-			//client.sendFile("C:\\Users\\Marcel\\Downloads\\FileZilla_3.26.2_win64-setup.exe");
-			//client.sendObject(obj);
-
+			client.sendObject("HALLLOOOO");
 			Console.ReadKey();
 
 			if (client.Connected)
@@ -38,16 +32,24 @@ namespace Client
 			}
 		}
 
+		private static void Client_ReceiveFile(byte[] arg1, long arg2, long arg3)
+		{
+			Console.WriteLine("Dateipaket empfangen");
+		}
+
+		private static void Client_ReceiveFileInfo(string arg1, long arg2)
+		{
+			Console.WriteLine("Dateiinfo empfangen");
+		}
+
+		private static void Client_ReceiveObject(object obj)
+		{
+			Console.WriteLine("Objekt empfangen");
+		}
+
 		static void errorCallback(string message)
 		{
 			Console.WriteLine("Fehler: {0}", message);
-		}
-
-		static void receiveCallback(byte[] data, int size)
-		{
-			Console.WriteLine("{0} Bytes empfangen", size);
-			Console.WriteLine("Nachricht: {0}", Encoding.UTF8.GetString(data, 0, size));
-			//client.send(Encoding.UTF8.GetBytes("Jo, alles klar!"));
 		}
 	}
 }

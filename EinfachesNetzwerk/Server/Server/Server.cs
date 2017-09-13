@@ -16,28 +16,34 @@ namespace EinfachesNetzwerk
 		private TcpListener listener;
 		private ushort port;
 		private bool running;
-		private Action<ServerClientConnectionInfo, byte[], int> receiveCallback;
-		private Action<List<ServerClientConnectionInfo>> clientConnectionsCallback;
 		private Action<string> errorCallback;
-		private List<ServerClientConnection> clientConnections;
+		private List<Connection> clientConnections;
 
 		// Eigenschaften
 		public ushort Port { get => this.port; }
 		public bool Running { get => this.running; }
 
+		// Events
+		public event Action<List<ConnectionInfo>> ConnectionsChanged;
+		public event Action<ConnectionInfo, object> ReceiveObject;
+		public event Action<ConnectionInfo, string, long> ReceiveFileInfo;
+		public event Action<ConnectionInfo, byte[], long, long> ReceiveFile;
+
 		// Öffentliche Methoden
-		public Server(Action<ServerClientConnectionInfo, byte[], int> receiveCallback, Action<List<ServerClientConnectionInfo>> clientConnectionsCallback = null, Action<string> errorCallback = null)
+		public Server()
 		{
 			this.listener = null;
 			this.port = 0;
 			this.running = false;
 
-			this.receiveCallback = receiveCallback;
-			this.clientConnectionsCallback = clientConnectionsCallback;
-			this.errorCallback = errorCallback;
-
-			this.clientConnections = new List<ServerClientConnection>();
+			this.clientConnections = new List<Connection>();
 		}
+		public Server(Action<string> errorCallback = null):
+			this()
+		{
+			this.errorCallback = errorCallback;
+		}
+
 		public void start(ushort port)
 		{
 			if (!this.running)
@@ -90,56 +96,26 @@ namespace EinfachesNetzwerk
 				this.running = false;
 			}
 		}
-		public List<ServerClientConnectionInfo> getClientInfoList()
+		public List<ConnectionInfo> getClientInfoList()
 		{
-			var clientInfos = new List<ServerClientConnectionInfo>();
+			var clientInfos = new List<ConnectionInfo>();
 			foreach (var clientConnection in this.clientConnections)
 			{
 				clientInfos.Add(clientConnection);
 			}
 			return clientInfos;
 		}
-		public void send(ServerClientConnectionInfo clientInfo, byte[] data)
+		
+		public void kick(ConnectionInfo clientInfo)
 		{
 			if (this.clientConnections.Contains(clientInfo))
 			{
-				((ServerClientConnection)clientInfo).send(data);
-			}
-			else
-			{
-				this?.errorCallback("Nachricht kann nicht gesendet werden! - Keine Verbindung");
-			}
-		}
-		public void send(ServerClientConnectionInfo clientInfo, object obj)
-		{
-			try
-			{
-				string objStr = Newtonsoft.Json.JsonConvert.SerializeObject(obj, Newtonsoft.Json.Formatting.Indented);
-				this.send(clientInfo, Encoding.UTF8.GetBytes(objStr));
-			}
-			catch (Exception exc)
-			{
-				Console.WriteLine("Fehler beim Serialisieren des Objekts: {0}", exc.Message);
-			}
-		}
-		public void sendObject(object obj)
-		{
-
-		}
-		public void sendFile(string path)
-		{
-
-		}
-		public void kick(ServerClientConnectionInfo clientInfo)
-		{
-			if (this.clientConnections.Contains(clientInfo))
-			{
-				((ServerClientConnection)clientInfo).disconnect();
+				((Connection)clientInfo).disconnect();
 			}
 		}
 		public void kick(string host, ushort port)
 		{
-			ServerClientConnectionInfo clientInfo = null;
+			ConnectionInfo clientInfo = null;
 			foreach (var clientConnection in this.clientConnections)
 			{
 				if (clientConnection.Host == host && clientConnection.Port == port)
@@ -155,7 +131,7 @@ namespace EinfachesNetzwerk
 			}
 		}
 
-		// Private Methoden
+		// Private Methodenayy
 		private void listen()
 		{
 			Console.WriteLine("Warte auf eingehende Verbindungen...");
@@ -175,8 +151,12 @@ namespace EinfachesNetzwerk
 			}
 
 			// Verbindung halten
-			this.clientConnections.Add(new ServerClientConnection(client, this.receiveCallback, this.errorCallback, this.removeClientConnection));
-			this?.clientConnectionsCallback(this.getClientInfoList());
+			this.clientConnections.Add(new Connection(client,
+				this.ReceiveObject,
+				this.ReceiveFileInfo,
+				this.ReceiveFile,
+				this.errorCallback, this.removeClientConnection));
+			this.ConnectionsChanged(this.getClientInfoList());
 
 			// Weiter nach Client-Verbindungen lauschen
 			try
@@ -189,14 +169,14 @@ namespace EinfachesNetzwerk
 				this?.errorCallback(exc.Message);
 			}
 		}
-		private void removeClientConnection(ServerClientConnection clientConnection)
+		private void removeClientConnection(Connection clientConnection)
 		{
 			lock (this.clientConnections)
 			{
 				clientConnection.disconnect();
 				this.clientConnections.Remove(clientConnection);
 				Console.WriteLine("Verbindung zum Client getrennt");
-				this?.clientConnectionsCallback(this.getClientInfoList());
+				this.ConnectionsChanged(this.getClientInfoList());
 			}
 		}
 	}
