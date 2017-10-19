@@ -1,0 +1,10 @@
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Server.exe.config
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Server.exe
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Server.pdb
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Newtonsoft.Json.pdb
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\obj\Debug\Server.csprojResolveAssemblyReference.cache
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\obj\Debug\Server.csproj.CoreCompileInputs.cache
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\obj\Debug\Server.exe
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\Server\Server\obj\Debug\Server.pdb

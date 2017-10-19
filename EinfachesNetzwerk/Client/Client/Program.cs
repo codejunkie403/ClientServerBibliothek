@@ -12,17 +12,20 @@ namespace Client
 
 		static void Main(string[] args)
 		{
-			client = new EinfachesNetzwerk.Client(errorCallback);
+			client = new EinfachesNetzwerk.Client();
+			client.ErrorOccured += Client_ErrorOccured;
+			client.ConnectionStateChanged += Client_ConnectionStateChanged;
 			client.ReceiveObject += Client_ReceiveObject;
 			client.ReceiveFileInfo += Client_ReceiveFileInfo;
 			client.ReceiveFile += Client_ReceiveFile;
 
-			client.connect(host: "localhost", port: 9876);
-
+			Console.WriteLine("Stelle Verbindung zum Server her...");
+			client.connect(host: "localhost", port: 9876, name: "Hannes");
 			Console.ReadKey();
 
 
-			client.sendObject("HALLLOOOO");
+			client.sendObject("Hans", "Nachricht", "ACHTUNG");
+			client.sendFile("Peter", "C:\\Users\\Marcel Weski\\Downloads\\VulkanSDK-1.0.61.1-Installer.exe");
 			Console.ReadKey();
 
 			if (client.Connected)
@@ -32,24 +35,33 @@ namespace Client
 			}
 		}
 
-		private static void Client_ReceiveFile(byte[] arg1, long arg2, long arg3)
+		#region Events
+		// Event, das aufgerufen wird wenn sich die Verbindung zum Server ändern
+		private static void Client_ConnectionStateChanged(bool connected)
 		{
-			Console.WriteLine("Dateipaket empfangen");
+			Console.WriteLine(connected ? "Verbunden" : "Nicht verbunden");
 		}
-
-		private static void Client_ReceiveFileInfo(string arg1, long arg2)
+		// Event, das aufgerufen wird wenn ein Fehler aufgetreten ist
+		private static void Client_ErrorOccured(string obj)
 		{
-			Console.WriteLine("Dateiinfo empfangen");
+			Console.WriteLine("Fehler: {0}", obj);
 		}
-
-		private static void Client_ReceiveObject(object obj)
+		// Event, das aufgerufen wird wenn ein Objekt empfangen wird
+		private static void Client_ReceiveObject(string sender, string obj_name, string obj_str)
 		{
-			Console.WriteLine("Objekt empfangen");
+			Console.WriteLine("Objekt von {0} empfangen.\n\tObjekt-Name: {1}\n\tObjekt-String: {2}", sender, obj_name, obj_str);
 		}
-
-		static void errorCallback(string message)
+		// Event, das aufgerufen wird wenn eine Dateiinfo empfangen wird
+		private static void Client_ReceiveFileInfo(string sender, string file_name, long file_size)
 		{
-			Console.WriteLine("Fehler: {0}", message);
+			Console.WriteLine("Dateiinfo von {0} empfangen.\n\tDateiname: {1}\n\tDateigröße: {2} Bytes", sender, file_name, file_size);
 		}
+		// Event, das aufgerufen wird wenn ein Dateipaket empfangen wird
+		private static void Client_ReceiveFile(string sender, byte[] buffer, long current_size, long total_size)
+		{
+			float progress = ((float)current_size / total_size) * 100;
+			Console.WriteLine("Dateipaket von {0} empfangen.\n\tFortschritt: {1:0.00} %", sender, progress);
+		}
+		#endregion
 	}
 }

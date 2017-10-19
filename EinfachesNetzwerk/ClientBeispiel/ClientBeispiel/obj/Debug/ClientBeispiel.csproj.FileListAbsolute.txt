@@ -1,0 +1,13 @@
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.csprojResolveAssemblyReference.cache
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.Properties.Resources.resources
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.csproj.GenerateResource.Cache
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.csproj.CoreCompileInputs.cache
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\ClientBeispiel.exe.config
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\ClientBeispiel.exe
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\ClientBeispiel.pdb
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\Newtonsoft.Json.pdb
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.exe
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.pdb
+C:\Users\Marcel Weski\Documents\GitHub\ClientServerBibliothek\EinfachesNetzwerk\ClientBeispiel\ClientBeispiel\obj\Debug\ClientBeispiel.FrmMain.resources

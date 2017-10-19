@@ -16,7 +16,6 @@ namespace EinfachesNetzwerk
 		private TcpListener listener;
 		private ushort port;
 		private bool running;
-		private Action<string> errorCallback;
 		private List<Connection> clientConnections;
 
 		// Eigenschaften
@@ -24,10 +23,11 @@ namespace EinfachesNetzwerk
 		public bool Running { get => this.running; }
 
 		// Events
+		public event Action<string> ErrorOccured;
 		public event Action<List<ConnectionInfo>> ConnectionsChanged;
-		public event Action<ConnectionInfo, object> ReceiveObject;
-		public event Action<ConnectionInfo, string, long> ReceiveFileInfo;
-		public event Action<ConnectionInfo, byte[], long, long> ReceiveFile;
+		public event Action<ConnectionInfo, string, string, string> ReceiveObject;
+		public event Action<ConnectionInfo, string, string, long> ReceiveFileInfo;
+		public event Action<ConnectionInfo, string, byte[], long, long> ReceiveFile;
 
 		// Öffentliche Methoden
 		public Server()
@@ -37,11 +37,6 @@ namespace EinfachesNetzwerk
 			this.running = false;
 
 			this.clientConnections = new List<Connection>();
-		}
-		public Server(Action<string> errorCallback = null):
-			this()
-		{
-			this.errorCallback = errorCallback;
 		}
 
 		public void start(ushort port)
@@ -64,7 +59,7 @@ namespace EinfachesNetzwerk
 				}
 				catch (SocketException exc)
 				{
-					this?.errorCallback(exc.Message);
+					this.ErrorOccured(exc.Message);
 				}
 			}
 			else
@@ -91,7 +86,7 @@ namespace EinfachesNetzwerk
 				}
 				catch (SocketException exc)
 				{
-					this?.errorCallback(exc.Message);
+					this.ErrorOccured(exc.Message);
 				}
 				this.running = false;
 			}
@@ -131,7 +126,46 @@ namespace EinfachesNetzwerk
 			}
 		}
 
-		// Private Methodenayy
+		// Private Methoden
+		private void ReceiveObject_Internal(ConnectionInfo connection_info, string receiver, string name, string obj)
+		{
+			var connection = (Connection)connection_info;
+			if (connection.Name == null)
+			{
+				if (name == "ConnectionInfoName")
+				{
+					string client_name = Core.ToObject<string>(obj);
+
+					// Überprüfung ob Name schon verbunden ist
+					foreach (Connection client in this.clientConnections)
+					{
+						if (client.Name == client_name || client_name == "Server" || client_name == "Admin")
+						{
+							connection.sendObject("Server", "Error", "Der Name ist bereits beim Server angemeldet oder ungültig!");
+							connection.disconnect(false);
+							return;
+						}
+					}
+
+					connection.Name = client_name;
+					Console.WriteLine("{0} hat sich verbunden", connection.Name);
+
+					// Namen senden
+					this.clientConnections.Add(connection);
+					this.ConnectionsChanged(this.getClientInfoList());
+				}
+				else
+				{
+					Console.WriteLine("Zuerst muss ein Name gesendet werden!");
+					connection.sendObject("Server", "Error", "Zuerst muss ein Name gesendet werden!");
+					connection.disconnect(false);
+				}
+			}
+			else
+			{
+				this.ReceiveObject(connection_info, receiver, name, obj);
+			}
+		}
 		private void listen()
 		{
 			Console.WriteLine("Warte auf eingehende Verbindungen...");
@@ -151,12 +185,14 @@ namespace EinfachesNetzwerk
 			}
 
 			// Verbindung halten
-			this.clientConnections.Add(new Connection(client,
-				this.ReceiveObject,
+			var connection = new Connection(client,
+				this.ReceiveObject_Internal,
 				this.ReceiveFileInfo,
-				this.ReceiveFile,
-				this.errorCallback, this.removeClientConnection));
-			this.ConnectionsChanged(this.getClientInfoList());
+				this.ReceiveFile);
+			connection.RemoveCallback += this.removeClientConnection;
+			connection.ErrorOccured += this.ErrorOccured;
+			//this.clientConnections.Add(connection);
+			//this.ConnectionsChanged(this.getClientInfoList());
 
 			// Weiter nach Client-Verbindungen lauschen
 			try
@@ -166,7 +202,7 @@ namespace EinfachesNetzwerk
 			catch (SocketException exc)
 			{
 				this.running = false;
-				this?.errorCallback(exc.Message);
+				this.ErrorOccured(exc.Message);
 			}
 		}
 		private void removeClientConnection(Connection clientConnection)

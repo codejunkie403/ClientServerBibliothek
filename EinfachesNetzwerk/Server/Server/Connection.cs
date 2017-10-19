@@ -8,40 +8,30 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 namespace EinfachesNetzwerk
 {
-	public class ConnectionInfo
-	{
-		protected string host;
-		protected ushort port;
-
-		public string Host { get => this.host; }
-		public ushort Port { get => this.port; }
-
-		//
-		public string Name { get; set; }
-	}
-
 	public class Connection:
-		ConnectionInfo
+		Core
 	{
 		// Felder
 		private TcpClient client;
-		private Action<string> errorCallback;
-		private Action<Connection> removeCallback;
-		public Core core;
+		private bool call_remove_callback;
+
+		// Events
+		public event Action<string> ErrorOccured;
+		public event Action<Connection> RemoveCallback;
 
 		// Öffentliche Methoden
 		public Connection(TcpClient client,
-			Action<ConnectionInfo, object> ReceiveObject,
-			Action<ConnectionInfo, string, long> ReceiveFileInfo,
-			Action<ConnectionInfo, byte[], long, long> ReceiveFile,
-			Action<string> errorCallback,
-			Action<Connection> removeCallback)
+			Action<ConnectionInfo, string, string, string> ReceiveObject,
+			Action<ConnectionInfo, string, string, long> ReceiveFileInfo,
+			Action<ConnectionInfo, string, byte[], long, long> ReceiveFile)
 		{
 			this.client = client;
-			this.errorCallback = errorCallback;
-			this.removeCallback = removeCallback;
+			this.call_remove_callback = true;
 
 			// Verbindungsinfos des Clients ausgeben
 			try
@@ -54,27 +44,35 @@ namespace EinfachesNetzwerk
 			}
 			catch (SocketException exc)
 			{
-				this?.errorCallback(exc.Message);
-				this.removeCallback(this);
+				this.ErrorOccured(exc.Message);
+				this.RemoveCallback(this);
 				return;
 			}
 
 			// Prozess zum Empfangen von Daten vom Client starten
-			this.core = new Core();
-			this.core.configReceiveBuffer(this.client.ReceiveBufferSize);
-			this.core.startReceiving(this.client.GetStream(), () => this.removeCallback(this));
+			this.configReceiveBuffer(this.client.ReceiveBufferSize);
+			this.startReceiving(this.client.GetStream(), () =>
+			{
+				if (this.call_remove_callback)
+					this.RemoveCallback(this);
+			});
 
 			// Events weiterleiten
-			this.core.ReceiveObject += (o) => ReceiveObject(this, o);
-			this.core.ReceiveFileInfo += (p, s) => ReceiveFileInfo(this, p, s);
-			this.core.ReceiveFile += (b, c, t) => ReceiveFile(this, b, c, t);
+			this.ReceiveObject += (r, n, o) => ReceiveObject(this, r, n, o);
+			this.ReceiveFileInfo += (r, p, s) => ReceiveFileInfo(this, r, p, s);
+			this.ReceiveFile += (r, b, c, t) => ReceiveFile(this, r, b, c, t);
 		}
 
-		public void sendObject(object obj)
+		public void sendObject(string sender, string obj_name, object obj)
 		{
 			try
 			{
-				var objectBytes = this.core.serialize(obj);
+				var objJson = new JObject {
+					[obj_name] = JsonConvert.SerializeObject(obj),
+					["Receiver"] = sender
+				};
+				var objString = objJson.ToString();
+				var objectBytes = Encoding.UTF8.GetBytes(objString);
 				var objectSizeBytes = BitConverter.GetBytes(objectBytes.Length);
 
 				var clientStream = this.client.GetStream();
@@ -92,7 +90,7 @@ namespace EinfachesNetzwerk
 				Console.WriteLine("Fehler beim Serialisieren des Objekts: {0}", exc.Message);
 			}
 		}
-		public void sendFile(string path)
+		public void sendFile(string sender, string path)
 		{
 			FileInfo fileInfo = null;
 			try
@@ -107,16 +105,17 @@ namespace EinfachesNetzwerk
 
 			if (fileInfo.Exists)
 			{
-				var filePacket = new Core.FilePacket
+				var filePacket = new FilePacket
 				{
 					Size = fileInfo.Length,
 					CreationTime = fileInfo.CreationTime,
 					LastAccessTime = fileInfo.LastAccessTime,
 					LastWriteTime = fileInfo.LastWriteTime,
-					Name = fileInfo.Name
+					Name = fileInfo.Name,
+					Receiver = sender
 				};
 
-				var filePacketBytes = this.core.serialize(filePacket);
+				var filePacketBytes = this.serialize(filePacket);
 				var filePacketSizeBytes = BitConverter.GetBytes(filePacketBytes.Length);
 
 				var clientStream = this.client.GetStream();
@@ -147,9 +146,14 @@ namespace EinfachesNetzwerk
 				Console.WriteLine("Die Datei '{0}' existiert nicht!", fileInfo.FullName);
 			}
 		}
-
-		public void disconnect()
+		public void forwardFilePacket(string receiver, byte[] buffer, long current_size, long total_size)
 		{
+			// TODO: Dateipakete an Empfänger weiterleiten
+		}
+
+		public void disconnect(bool call_remove_callback = true)
+		{
+			this.call_remove_callback = call_remove_callback;
 			this.client.Close();
 		}
 	}

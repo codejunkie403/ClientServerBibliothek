@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using System.IO;
+using EinfachesNetzwerk;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Server
 {
@@ -14,7 +16,8 @@ namespace Server
 
 		static void Main(string[] args)
 		{
-			server = new EinfachesNetzwerk.Server(errorCallback);
+			server = new EinfachesNetzwerk.Server();
+			server.ErrorOccured += Server_ErrorOccured;
 			server.ConnectionsChanged += Server_ConnectionsChanged;
 			server.ReceiveObject += Server_ReceiveObject;
 			server.ReceiveFileInfo += Server_ReceiveFileInfo;
@@ -23,11 +26,6 @@ namespace Server
 			server.start(port: 9876);
 			Console.ReadKey();
 
-			//var clients = server.getClientInfoList();
-			//if (clients.Count > 0)
-			//	server.kick(clients[0]);
-			//Console.ReadKey();
-
 			if (server.Running)
 			{
 				server.stop();
@@ -35,102 +33,63 @@ namespace Server
 			}
 		}
 
-		private static void Server_ReceiveFile(EinfachesNetzwerk.ConnectionInfo arg1, byte[] arg2, long arg3, long arg4)
-		{
-			Console.WriteLine("Dateipaket empfangen");
-		}
-
-		private static void Server_ReceiveFileInfo(EinfachesNetzwerk.ConnectionInfo arg1, string arg2, long arg3)
-		{
-			Console.WriteLine("Dateiinfo empfangen");
-		}
-
-		private static void Server_ReceiveObject(EinfachesNetzwerk.ConnectionInfo arg1, object arg2)
-		{
-			Console.WriteLine("Objekt empfangen");
-		}
-
-		private static void Server_ConnectionsChanged(List<EinfachesNetzwerk.ConnectionInfo> clients)
-		{
-			Console.WriteLine("Verbundene Clients haben sich geändert");
-
-			foreach (var client in clients)
-			{
-				((EinfachesNetzwerk.Connection)client).sendObject("Moin");
-			}
-		}
-
-		static void errorCallback(string message)
+		#region Events
+		// Event, das aufgerufen wird wenn ein Fehler auftritt
+		private static void Server_ErrorOccured(string message)
 		{
 			Console.WriteLine("Fehler: {0}", message);
 		}
+		// Event, das aufgerufen wird wenn sich die Verbindungen ändern
+		private static void Server_ConnectionsChanged(List<ConnectionInfo> clients)
+		{
+			Console.WriteLine("Verbundene Clients haben sich geändert");
 
-		//static void receiveCallback(EinfachesNetzwerk.ConnectionInfo clientInfo, byte[] data, int size)
-		//{
-		//	//try
-		//	//{
-		//	//	var jsonObj = Newtonsoft.Json.JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(Encoding.UTF8.GetString(data, 0, size));
-		//	//	if (jsonObj["Name"] != null)
-		//	//	{
-		//	//		clientInfo.Name = (string)jsonObj["Name"];
-		//	//	}
-		//	//}
-		//	//catch { }
+			// Sobald sich ein neuer Client verbindet/trennt werden die verbunden Clientnamen an alle noch verbundenen Clients gesendet
+			if (clients.Count > 0)
+			{
+				var names = new List<string>();
+				for (int i = 0; i < clients.Count; i++)
+				{
+					names.Add(clients[i].Name);
+				}
 
-		//	byte[] filePacketSizeBytes = new byte[sizeof(int)];
-		//	byte[] filePacketBytes;
+				foreach (var client in clients)
+				{
+					Console.WriteLine("Sende Client-Namen an {0}", client.Name);
+					((Connection)client).sendObject("Server", "ClientNamen", names);
+				}
+			}
+		}
+		// Event, das aufgerufen wird wenn ein Objekt empfangen wird
+		private static void Server_ReceiveObject(ConnectionInfo sender_info, string receiver, string obj_name, string obj_str)
+		{
+			Console.WriteLine("Objekt von {0} empfangen, das an {1} addressiert ist.\n\tObjekt-Name: {2}\n\tObjekt-String: {3}", sender_info.Name, receiver, obj_name, obj_str);
 
-		//	using (var memoryStream = new MemoryStream(data))
-		//	{
-		//		memoryStream.Read(filePacketSizeBytes, 0, sizeof(int));
-		//		filePacketBytes = new byte[BitConverter.ToInt32(filePacketSizeBytes, 0)];
-		//		memoryStream.Read(filePacketBytes, 0, filePacketBytes.Length);
-		//	}
+			// Überprüfen, ob Empfänger verbunden ist
+			foreach (var client in server.getClientInfoList())
+			{
+				if (client.Name == receiver)
+				{
+					// Objekt an Empfänger weiterleiten
+					((Connection)client).sendObject(sender_info.Name, obj_name, obj_str);
+					Console.WriteLine("Objekt an {0} weitergeleitet", receiver);
+					return;
+				}
+			}
 
-
-		//	Console.WriteLine("{0} Bytes empfangen von {1}:{2}:{3}", size, clientInfo.Host, clientInfo.Port, clientInfo.Name);
-		//	Console.WriteLine("Nachricht: {0}", Encoding.UTF8.GetString(filePacketBytes));
-		//}
-
-		//static void clientConnectionsChanged(List<EinfachesNetzwerk.ConnectionInfo> clientInfoList)
-		//{
-		//	Console.WriteLine("Verbundene Clients:");
-		//	foreach (var client in clientInfoList)
-		//	{
-		//		Console.WriteLine("\t{0}:{1}:{2}", client.Host, client.Port, client.Name);
-
-		//		//var data = new Newtonsoft.Json.Linq.JObject();
-		//		//data["Nachricht"] = "Hallo, wie gehts, wie stets?";
-
-		//		//server.send(client, data);
-
-		//		((EinfachesNetzwerk.Connection)client).core.ReceiveObject += Core_ReceiveObject;
-		//		((EinfachesNetzwerk.Connection)client).core.ReceiveFileInfo += Core_ReceiveFileInfo;
-		//		((EinfachesNetzwerk.Connection)client).core.ReceiveFile += Core_ReceiveFile;
-		//	}
-		//}
-
-		//private static void Core_ReceiveObject(object obj)
-		//{
-		//	Console.WriteLine("Objekt empfangen");
-		//	Console.WriteLine((string)obj);
-
-
-		//}
-
-		//private static void Core_ReceiveFileInfo(string fileName, long fileSize)
-		//{
-		//	Console.WriteLine("Empfange Datei '{0}' - {1} Bytes", fileName, fileSize);
-		//}
-
-		//private static void Core_ReceiveFile(byte[] fileBuffer, long currentFileSize, long totalFileSize)
-		//{
-		//	float percentage = ((float)currentFileSize / totalFileSize) * 100;
-		//	Console.WriteLine("{0:0.00} Prozent heruntergeladen...", percentage);
-		//	if (currentFileSize == totalFileSize)
-		//	{
-		//		Console.WriteLine("Datei heruntergeladen");
-		//	}
-		//}
+			Console.WriteLine("Empfänger ist nicht verbunden!");
+		}
+		// Event, das aufgerufen wird wenn eine Dateiinfo empfangen wird
+		private static void Server_ReceiveFileInfo(ConnectionInfo sender_info, string receiver, string filename, long size)
+		{
+			Console.WriteLine("Dateiinfo von {0} empfangen, die an {1} addressiert ist.\n\tDateiname: {2}\n\tDateigröße: {3} Bytes", sender_info.Name, receiver, filename, size);
+		}
+		// Event, das aufgerufen wird wenn ein Dateipaket empfangen wird
+		private static void Server_ReceiveFile(ConnectionInfo sender_info, string receiver, byte[] buffer, long current_size, long total_size)
+		{
+			float progress = ((float)current_size / total_size) * 100;
+			Console.WriteLine("Dateipaket von {0} empfangen, das an {1} addressiert ist.\n\tFortschritt: {2:0.00} %", sender_info.Name, receiver, progress);
+		}
+		#endregion
 	}
 }

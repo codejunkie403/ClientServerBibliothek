@@ -8,9 +8,25 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 namespace EinfachesNetzwerk
 {
-	public class Core
+	public class ConnectionInfo
+	{
+		protected string host;
+		protected ushort port;
+		protected string name;
+
+		public string Host { get => this.host; }
+		public ushort Port { get => this.port; }
+		
+		//
+		public string Name { get => this.name; set => this.name = value; }
+	}
+	public class Core:
+		ConnectionInfo
 	{
 		// Datentypen
 		public enum PacketType: byte
@@ -27,6 +43,7 @@ namespace EinfachesNetzwerk
 			public DateTime LastAccessTime { get; set; }
 			public DateTime LastWriteTime { get; set; }
 			public string Name { get; set; }
+			public string Receiver;
 		}
 
 		// Felder
@@ -39,9 +56,9 @@ namespace EinfachesNetzwerk
 		private long receivedFileSize;
 
 		// Events
-		public event Action<object> ReceiveObject;
-		public event Action<string, long> ReceiveFileInfo;
-		public event Action<byte[], long, long> ReceiveFile;
+		public event Action<string, string, string> ReceiveObject;
+		public event Action<string, string, long> ReceiveFileInfo;
+		public event Action<string, byte[], long, long> ReceiveFile;
 
 		// Methoden
 		public Core()
@@ -64,6 +81,10 @@ namespace EinfachesNetzwerk
 		public object deserialize(byte[] bytes)
 		{
 			return Newtonsoft.Json.JsonConvert.DeserializeObject(Encoding.UTF8.GetString(bytes));
+		}
+		public static T ToObject<T>(string obj)
+		{
+			return JsonConvert.DeserializeObject<T>(obj);
 		}
 		private void parseReceivedBuffer(int receivedSize)
 		{
@@ -133,7 +154,7 @@ namespace EinfachesNetzwerk
 						this.currentPacketType = PacketType.FileData;
 						//Console.WriteLine(Encoding.UTF8.GetString(this.packetStream.ToArray()));
 						//Console.WriteLine("Dateipaket empfangen");
-						this.ReceiveFileInfo(this.currentFilePacket.Name, this.currentFilePacket.Size);
+						this.ReceiveFileInfo(this.currentFilePacket.Receiver, this.currentFilePacket.Name, this.currentFilePacket.Size);
 					}
 					catch
 					{
@@ -187,8 +208,7 @@ namespace EinfachesNetzwerk
 						//Console.WriteLine("Datei komplett empfangen");
 						// Callback für Dateiverarbeitung
 						this.receivedFileSize += restSize;
-						if (this.ReceiveFile != null)
-							this.ReceiveFile(fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
+						this?.ReceiveFile(this.currentFilePacket.Receiver, fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
 
 						this.currentPacketSize = 0;
 						this.currentPacketType = PacketType.Invalid;
@@ -214,7 +234,7 @@ namespace EinfachesNetzwerk
 						Array.Copy(this.receivedBuffer, this.receivedBufferOffset, fileBuffer, 0, receivedSize);
 						//Console.WriteLine("{0} Bytes der Datei empfangen", receivedSize);
 						// Callback für Dateiverarbeitung
-						this?.ReceiveFile(fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
+						this?.ReceiveFile(this.currentFilePacket.Receiver, fileBuffer, this.receivedFileSize, this.currentFilePacket.Size);
 
 						this.receivedFileSize += receivedSize;
 
@@ -238,9 +258,37 @@ namespace EinfachesNetzwerk
 					this.packetStream.Write(this.receivedBuffer, this.receivedBufferOffset, this.currentPacketSize);
 					// Paket ist fertig!
 					//Console.WriteLine("Dateipaket empfangen");
-					if (this.ReceiveObject != null)
-						this.ReceiveObject(this.deserialize(this.packetStream.ToArray()));
+					//if (this.name == null)
+					//{
+					//	try
+					//	{
+					//		var data = (Newtonsoft.Json.Linq.JObject)this.deserialize(this.packetStream.ToArray());
+					//		if (data["$ConnectionInfoName"] != null)
+					//		{
+					//			this.name = (string)data["$ConnectionInfoName"];
+					//			Console.WriteLine("{0} hat sich verbunden", this.name);
+					//		}
+					//		else
+					//		{
+					//			throw new Exception("Es sollte erst ein Name an den Server geschickt werden!");
+					//		}
+					//	}
+					//	catch
+					//	{
 
+					//	}
+					//}
+					//else
+					{
+						var data = (JObject)this.deserialize(this.packetStream.ToArray());
+						foreach (var pair in data)
+						{
+							//this.ReceiveObject?.Invoke(pair.Key, JsonConvert.DeserializeObject(pair.Value.ToString()));
+							if (pair.Key != "Receiver")
+								this.ReceiveObject?.Invoke(data["Receiver"].ToString(), pair.Key, pair.Value.ToString());
+						}
+
+					}
 
 					// Pakettyp und Paketstream für nächstes Paket zurücksetzen
 					this.currentPacketType = PacketType.Invalid;

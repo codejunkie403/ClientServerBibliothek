@@ -9,33 +9,33 @@ using System.Net.Sockets;
 using System.Security;
 using System.IO;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 namespace EinfachesNetzwerk
 {
 	public class Client: Core
 	{
 		// Felder
 		private TcpClient client;
-		private string host;
-		private ushort port;
 		private bool connected;
-		private Action<string> errorCallback;
-		//private byte[] receiveBuffer;
 
 		// Eigenschaften
-		public string Host { get => this.host; }
-		public ushort Port { get => this.port; }
 		public bool Connected { get => this.connected; }
 
+		// Events
+		public event Action<string> ErrorOccured;
+		public event Action<bool> ConnectionStateChanged;
+
 		// Öffentliche Methoden
-		public Client(Action<string> errorCallback = null)
+		public Client()
 		{
 			this.client = null;
 			this.host = null;
 			this.port = 0;
 			this.connected = false;
-			this.errorCallback = errorCallback;
 		}
-		public void connect(string host, ushort port)
+		public void connect(string host, ushort port, string name)
 		{
 			if (!this.connected)
 			{
@@ -44,6 +44,7 @@ namespace EinfachesNetzwerk
 
 				this.host = host;
 				this.port = port;
+				this.name = name;
 
 				try
 				{
@@ -52,11 +53,11 @@ namespace EinfachesNetzwerk
 				}
 				catch (SocketException exc)
 				{
-					this?.errorCallback(exc.Message);
+					this.ErrorOccured(exc.Message);
 				}
 				catch (SecurityException exc)
 				{
-					this?.errorCallback(exc.Message);
+					this.ErrorOccured(exc.Message);
 				}
 			}
 			else
@@ -80,7 +81,7 @@ namespace EinfachesNetzwerk
 			}
 		}
 
-		public void sendObject(object obj)
+		public void sendObject(string receiver, string name, object obj)
 		{
 			if (!this.connected)
 			{
@@ -90,7 +91,12 @@ namespace EinfachesNetzwerk
 
 			try
 			{
-				var objectBytes = this.serialize(obj);
+				var objJson = new JObject {
+					[name] = JsonConvert.SerializeObject(obj),
+					["Receiver"] = receiver
+				};
+				var objString = objJson.ToString();
+				var objectBytes = Encoding.UTF8.GetBytes(objString);
 				var objectSizeBytes = BitConverter.GetBytes(objectBytes.Length);
 
 				var clientStream = this.client.GetStream();
@@ -108,7 +114,7 @@ namespace EinfachesNetzwerk
 				Console.WriteLine("Fehler beim Serialisieren des Objekts: {0}", exc.Message);
 			}
 		}
-		public void sendFile(string path)
+		public void sendFile(string receiver, string path)
 		{
 			if (!this.connected)
 			{
@@ -129,13 +135,14 @@ namespace EinfachesNetzwerk
 
 			if (fileInfo.Exists)
 			{
-				var filePacket = new Core.FilePacket
+				var filePacket = new FilePacket
 				{
 					Size = fileInfo.Length,
 					CreationTime = fileInfo.CreationTime,
 					LastAccessTime = fileInfo.LastAccessTime,
 					LastWriteTime = fileInfo.LastWriteTime,
-					Name = fileInfo.Name
+					Name = fileInfo.Name,
+					Receiver = receiver
 				};
 
 				var filePacketBytes = this.serialize(filePacket);
@@ -175,6 +182,7 @@ namespace EinfachesNetzwerk
 		{
 			this.connected = false;
 			Console.WriteLine("Verbindung getrennt");
+			this.ConnectionStateChanged(false);
 		}
 		private void acceptConnection(IAsyncResult ar)
 		{
@@ -188,20 +196,20 @@ namespace EinfachesNetzwerk
 			}
 			catch (SocketException exc)
 			{
-				this?.errorCallback(exc.Message);
+				this.ErrorOccured(exc.Message);
+				this.setDisconnected();
 				return;
 			}
 
-			// TODO: Callback für Verbindung hergestellt
-			//var data = new Newtonsoft.Json.Linq.JObject();
-			//data["Name"] = "Hans Dieter";
-			//this.send(data);
+			// Name senden
+			this.sendObject("Server", "ConnectionInfoName", this.name);
 
 			// Prozess zum Empfangen vom Server starten
-			//this.receiveBuffer = new byte[this.client.ReceiveBufferSize];
-
 			this.configReceiveBuffer(this.client.ReceiveBufferSize);
 			this.startReceiving(this.client.GetStream(), this.setDisconnected);
+
+			// Verbunden-Event aufrufen
+			this.ConnectionStateChanged(true);
 		}
 	}
 }
